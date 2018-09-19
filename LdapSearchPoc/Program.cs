@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 
 namespace LdapSearchPoc
 {
@@ -12,9 +11,8 @@ namespace LdapSearchPoc
         private static IDictionary<string, CertificateLookup> _certificateStore = new Dictionary<string, CertificateLookup>();
 
         static void Main(string[] args)
-        {
+        {            
             string email = "test@test.se";
-            //string email = "40400@ediel.oresundskraft.se";
 
             var certificateLookup = _certificateStore.ContainsKey(email) ? _certificateStore[email] : null;
             if (certificateLookup == null)
@@ -47,12 +45,15 @@ namespace LdapSearchPoc
                 {
                     Console.Out.WriteLine($"Got {results.Count} matches for search for {email} user certificates");
                     certificateLookup.LastLookup = DateTime.Now;
-                    while (results.hasMore())
+                    while (results.HasMore())
                     {
-                        var result = results.next();
-                        var certificate = result.getAttribute("userCertificate");
-                        var certificates = GetCertificatesFromResult(email, certificate);
-                        certificateLookup.CertificateCollection.AddRange(certificates.ToArray());
+                        var result = results.FirstOrDefault();
+                        if (result != null)
+                        {
+                            var certificate = result.getAttribute("userCertificate");
+                            var certificates = GetCertificatesFromResult(email, certificate);
+                            certificateLookup.CertificateCollection.AddRange(certificates.ToArray());
+                        }
                     }
 
                 }
