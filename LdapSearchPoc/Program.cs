@@ -11,9 +11,10 @@ namespace LdapSearchPoc
         private static IDictionary<string, CertificateLookup> _certificateStore = new Dictionary<string, CertificateLookup>();
 
         static void Main(string[] args)
-        {            
-            string email = "test@test.se";
-
+        {
+            //string email = "test@test.se";
+            string email = "enorocis.se.ediel@enoro.com";
+            
             var certificateLookup = _certificateStore.ContainsKey(email) ? _certificateStore[email] : null;
             if (certificateLookup == null)
             {
@@ -33,19 +34,27 @@ namespace LdapSearchPoc
         private static void GetCertificatesFromLdap(string email, CertificateLookup certificateLookup)
         {
             string ldapHost = "sodir01.steria.se:389";
-            Console.Out.WriteLine($"Searching for {email} on LDAP server {ldapHost}");            
-            using (var conn = new LdapConnection())
+            Console.Out.WriteLine($"Searching for {email} on LDAP server {ldapHost}");
+            using (var conn = new LdapConnection() { Constraints = new LdapConstraints { ReferralFollowing = true } })
             {
+                
                 conn.Connect(ldapHost, 389);
+                                
+                var results = conn.Search("c=se", LdapConnection.SCOPE_SUB, $"mail={email}", new[] { "usercertificate" }, false);
 
-                //  var toReturn = lconn.Search(toGet.GetDn(), toGet.Scope, toGet.Filter, toGet.AttributeArray, false, cons);
-                var results =  conn.Search("c=se", LdapConnection.SCOPE_BASE, "mail={email}", new[] { "userCertificate" }, false);
+                HandleResults(results, certificateLookup, email);
+            }
+        }
 
-                if (results != null)
+        private static void HandleResults(LdapSearchResults results, CertificateLookup certificateLookup, string email)
+        {
+            if (results != null)
+            {
+                Console.Out.WriteLine($"Got {results.Count} matches for search for {email} user certificates");
+                certificateLookup.LastLookup = DateTime.Now;
+                while (results.HasMore())
                 {
-                    Console.Out.WriteLine($"Got {results.Count} matches for search for {email} user certificates");
-                    certificateLookup.LastLookup = DateTime.Now;
-                    while (results.HasMore())
+                    try
                     {
                         var result = results.FirstOrDefault();
                         if (result != null)
@@ -55,8 +64,12 @@ namespace LdapSearchPoc
                             certificateLookup.CertificateCollection.AddRange(certificates.ToArray());
                         }
                     }
-
+                    catch(InterThreadException interException)
+                    {
+                        Console.WriteLine($"Exception in HandleResults: {interException}");
+                    }
                 }
+
             }
         }
 
